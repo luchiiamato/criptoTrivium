@@ -1,111 +1,109 @@
-import PySimpleGUI as sg
+import PySimpleGUI as GUI
 import os.path
 import tempfile
 from PIL import ImageTk, Image
-from TriviumCypher import Trivium, hex_to_bits, hex_to_rgb, pixels_to_hex
+from TriviumCypher import Trivium, hex_to_rgb, pixels_to_hex
 
-key_hex = 'f0f0f0f0f0f0f0f0f0f0'
-iv_hex = 'feaefeaefeaefeaefeae'
+cipher = Trivium('', '')
 
-KEY = hex_to_bits(key_hex)[::-1]
-IV = hex_to_bits(iv_hex)[::-1]
+key_hex = ''
+iv_hex = ''
 
-if len(KEY) < 80:
-    for k in range (80-len(KEY)):
-        KEY.append(0)
-
-if len(IV) < 80:
-    for i in range (80-len(IV)):
-        IV.append(0)
-
-trivium = Trivium(KEY, IV)
 ciphertext = ''
 width, height = 0, 0
 
-# First the window layout in 2 columns
-file_list_column = [
+GUI.theme('LightGreen')
+
+row_1 = [
     [
-        sg.Text("Image Folder"),
-        sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
-        sg.FolderBrowse(),
+        GUI.Text('Ingresa la key en hexadecimal:', size=(25, 1)),
+        GUI.InputText(key="-KEY-", enable_events=True),
+        GUI.Button('Aplicar', key='-APLICAR_KEY-', disabled=True)
     ],
+]
+
+row_2 = [
     [
-        sg.Listbox(
-            values=[], enable_events=True, size=(40, 20), key="-FILE LIST-"
+        GUI.Text('Ingresa el IV en hexadecimal:', size=(25, 1)),
+        GUI.InputText(key="-IV-", enable_events=True),
+        GUI.Button('Aplicar', key='-APLICAR_IV-', disabled=True)
+    ],
+]
+
+row_3 = [
+    [
+        GUI.Text("Carpeta:", size=(7, 1)),
+        GUI.In(size=(26, 1), enable_events=True, key="-FOLDER-"),
+        GUI.FolderBrowse(),
+        GUI.VSeparator(color='white', pad=((9, 0),(0, 0))),
+        GUI.Text("Elegí una imagen en el panel de la izquierda.", pad=((20, 0),(0, 0)))
+    ],
+]
+
+row_4 = [
+    [
+        GUI.Listbox(
+                values=[],
+                enable_events=True,
+                size=(42, 20),
+                key="-FILE LIST-"
         ),
-    ],
-    [
-        sg.Button("Cifrar", disabled=True, key="-CIFRAR-"),
-    ],
-]
-
-image_viewer_column = [
-    [sg.Text("Elegí una imagen en el panel de la izquierda:")],
-    [sg.Text(size=(40, 1), key="-TOUT-")],
-    [sg.Image(key="-IMAGE-")],
-    [sg.Button("Descifrar", disabled=True, key="-DESCIFRAR-")],
-]
-
-# ----- Full layout -----
-layout = [
-    [
-        sg.Column(file_list_column),
-        sg.VSeperator(),
-        sg.Column(image_viewer_column),
+        GUI.VSeperator(color='white', pad=((15, 0),(0, 0))),
+        GUI.Image(key="-IMAGE-"),
     ]
 ]
 
-window = sg.Window("Image Viewer", layout)
+row_5 = [
+    [
+        GUI.VerticalSeparator(
+            color='white', 
+            pad=((338, 0), (0, 0))
+        ),
+        GUI.Button(
+            "Cifrar", 
+            disabled=True, 
+            pad=((5, 0), (0, 0)), 
+            key="-CIFRAR-"
+        ),
+        GUI.Button(
+            "Descifrar",
+            disabled=True,
+            pad=((20, 0), (0, 0)),
+            key="-DESCIFRAR-"
+        ), 
+        GUI.InputText(
+            '',
+            font=('Arial', 10, 'bold', 'italic'),
+            readonly=True,
+            disabled_readonly_background_color=GUI.theme_element_background_color(),
+            border_width= 0,
+            pad=((50, 0), (0, 0)),
+            key="-STATUS-"
+        )
+    ],
+]
 
-while True:
-    event, values = window.read()
-    if event == "Exit" or event == sg.WIN_CLOSED:
-        break
+layout = [
+    [
+        row_1,
+        row_2,
+        [GUI.HorizontalSeparator(color='white')],
+        row_3,
+        row_4,
+        row_5
+    ],
+]
 
-    # Folder name was filled in, make a list of files in the folder
-    if event == "-FOLDER-":
-        folder = values["-FOLDER-"]
-        try:
-            file_list = os.listdir(folder)
-        except:
-            file_list = []
+window = GUI.Window("Cifrador Trivium", layout)
 
-        fnames = [
-            f for f in file_list
-                if os.path.isfile(os.path.join(folder, f))
-                and f.lower().endswith((".jpg"))
-        ]
-        window["-FILE LIST-"].update(fnames)
+if __name__ == '__main__':
+    while True:
+        event, values = window.read()
+        if event == "Exit" or event == GUI.WIN_CLOSED:
+            break
 
-    elif event == "-FILE LIST-":  # A file was chosen from the listbox
-        try:
-            window["-DESCIFRAR-"].update(disabled=True)
-            filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
-            window["-TOUT-"].update(values["-FILE LIST-"][0])
-            img = ImageTk.PhotoImage(Image.open(filename))
-            window["-IMAGE-"].update(data=img)
-            window["-CIFRAR-"].update(disabled=False)
-        except:
-            pass
-    
-    elif event == "-CIFRAR-":
-        try:
-            filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
-            image = Image.open(filename)
-            data = list(image.getdata())
-            width, height = image.size
-
-            data = pixels_to_hex(data).upper()
-            ciphertext = trivium.encrypt(data)
-            data = hex_to_rgb(ciphertext)
-
-            image = Image.new("RGB", (width, height))
-            image.putdata(data)
-            path_cifrada = tempfile.gettempdir() + "/" + values["-FILE LIST-"][0]
-            image.save(path_cifrada)
-            image = ImageTk.PhotoImage(Image.open(path_cifrada))
-            window["-IMAGE-"].update(data=image)
-            
+        # Folder name was filled in, make a list of files in the folder
+        if event == "-FOLDER-":
             folder = values["-FOLDER-"]
             try:
                 file_list = os.listdir(folder)
@@ -118,36 +116,101 @@ while True:
                     and f.lower().endswith((".jpg"))
             ]
             window["-FILE LIST-"].update(fnames)
-            window["-DESCIFRAR-"].update(disabled=False)
-        except Exception as e:
-            print(e)
 
-    elif event == "-DESCIFRAR-":
-        try:
-            plain = trivium.decrypt(ciphertext)
-            data = hex_to_rgb(plain)
-
-            image = Image.new("RGB", (width, height))
-            image.putdata(data)
-            path_descifrada = tempfile.gettempdir() + "/" + "descifrada.jpg"
-            image.save(path_descifrada)
-            image = ImageTk.PhotoImage(Image.open(path_descifrada))
-            window["-IMAGE-"].update(data=image)
-            
-            folder = values["-FOLDER-"]
+        elif event == "-FILE LIST-":  # A file was chosen from the listbox
             try:
-                file_list = os.listdir(folder)
+                window["-DESCIFRAR-"].update(disabled=True)
+                filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
+                img = ImageTk.PhotoImage(Image.open(filename))
+                window["-IMAGE-"].update(data=img)
+                window["-CIFRAR-"].update(disabled=False)
             except:
-                file_list = []
+                pass
 
-            fnames = [
-                f for f in file_list
-                    if os.path.isfile(os.path.join(folder, f))
-                    and f.lower().endswith((".jpg"))
-            ]
-            window["-FILE LIST-"].update(fnames)
-            window["-DESCIFRAR-"].update(disabled=True)
-        except Exception as e:
-            print(e)
+        elif event == "-KEY-":  # A file was chosen from the listbox
+            try:
+                window["-KEY-"].update(background_color='red')
+                if len(values['-KEY-']) == 20:
+                    window["-KEY-"].update(background_color='green')
+                    window["-APLICAR_KEY-"].update(disabled=False)
+                else:
+                    window["-APLICAR_KEY-"].update(disabled=True)
+            except:
+                pass
 
-window.close()
+        elif event == "-IV-":  # A file was chosen from the listbox
+            try:
+                window["-IV-"].update(background_color='red')
+                if len(values['-IV-']) == 20:
+                    window["-IV-"].update(background_color='green')
+                    window["-APLICAR_IV-"].update(disabled=False)
+                else:
+                    window["-APLICAR_IV-"].update(disabled=True)
+            except:
+                pass
+        
+        elif event == "-APLICAR_KEY-":
+            try:
+                key_hex = values["-KEY-"]
+                int(key_hex, 16)
+                cipher.set_key(key_hex)
+                window["-KEY-"].update(background_color='white')
+                window["-APLICAR_KEY-"].update(disabled=True)
+            except ValueError:
+                GUI.popup('Uno de los caracteres no es un hexadecimal valido', title='Hexadecimal invalido')
+
+        elif event == "-APLICAR_IV-":
+            try:
+                iv_hex = values["-IV-"]
+                int(iv_hex, 16)
+                cipher.set_iv(iv_hex)
+                window["-IV-"].update(background_color='white')
+                window["-APLICAR_IV-"].update(disabled=True)
+            except ValueError:
+                GUI.popup('Uno de los caracteres no es un hexadecimal valido', title='Hexadecimal invalido')
+
+        elif event == "-CIFRAR-":
+            try:
+                window["-STATUS-"].update(value='Cifrando...')
+                window.Refresh()
+                filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
+                image = Image.open(filename)
+                data = list(image.getdata())
+                width, height = image.size
+
+                data = pixels_to_hex(data).upper()
+                ciphertext = cipher.encrypt(data)
+                data = hex_to_rgb(ciphertext)
+
+                image = Image.new("RGB", (width, height))
+                image.putdata(data)
+                path_cifrada = tempfile.gettempdir() + "/" + values["-FILE LIST-"][0]
+                image.save(path_cifrada)
+                image = ImageTk.PhotoImage(Image.open(path_cifrada))
+                window["-IMAGE-"].update(data=image)
+                
+                window["-DESCIFRAR-"].update(disabled=False)
+                window["-STATUS-"].update(value='')
+            except Exception as e:
+                print(e)
+
+        elif event == "-DESCIFRAR-":
+            try:
+                window["-STATUS-"].update(value='Descifrando...')
+                window.Refresh()
+                plain = cipher.decrypt(ciphertext)
+                data = hex_to_rgb(plain)
+
+                image = Image.new("RGB", (width, height))
+                image.putdata(data)
+                path_descifrada = tempfile.gettempdir() + "/" + "descifrada.jpg"
+                image.save(path_descifrada)
+                image = ImageTk.PhotoImage(Image.open(path_descifrada))
+                window["-IMAGE-"].update(data=image)
+                
+                window["-DESCIFRAR-"].update(disabled=True)
+                window["-STATUS-"].update(value='')
+            except Exception as e:
+                print(e)
+
+    window.close()

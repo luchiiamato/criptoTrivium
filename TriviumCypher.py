@@ -31,13 +31,22 @@ def hex_to_rgb(data):
     
     return res
 
-
 class Trivium:
-    def __init__(self, key, iv):
+    def __init__(self, key_hex, iv_hex):
         self.state = None
         self.counter = 0
-        self.key = key
-        self.iv = iv
+
+        KEY = hex_to_bits(key_hex)[::-1]
+        if len(KEY) < 80:
+            for k in range (80-len(KEY)):
+                KEY.append(0)
+        self.key = KEY
+
+        IV = hex_to_bits(iv_hex)[::-1]
+        if len(IV) < 80:
+            for i in range (80-len(IV)):
+                IV.append(0)
+        self.iv = IV
 
         # Initialize state
         # len 100
@@ -54,7 +63,23 @@ class Trivium:
         for i in range(4*288):
             self._gen_keystream()
 
+    def set_key(self, key_hex):
+        KEY = hex_to_bits(key_hex)[::-1]
+        if len(KEY) < 80:
+            for k in range (80-len(KEY)):
+                KEY.append(0)
+        self.key = KEY
+    
+    def set_iv(self, iv_hex):
+        IV = hex_to_bits(iv_hex)[::-1]
+        if len(IV) < 80:
+            for i in range (80-len(IV)):
+                IV.append(0)
+        self.iv = IV
+
     def __reset(self):
+        self.state = None
+        self.counter = 0
         # Initialize state
         # len 100
         init_list = list(map(int, list(self.key)))
@@ -85,11 +110,11 @@ class Trivium:
         self.__reset()
         ciphertext_bin = []
         plaintext_bin = []
-        if any(c.isalpha() for c in cipher):
-            ciphertext_bin = hex_to_bits(cipher)
-            for i in range(len(ciphertext_bin)):
-                plaintext_bin.append(self._gen_keystream() ^ ciphertext_bin[i])
-        
+
+        ciphertext_bin = hex_to_bits(cipher)
+        for i in range(len(ciphertext_bin)):
+            plaintext_bin.append(self._gen_keystream() ^ ciphertext_bin[i])
+
         plaintext_hex = bits_to_hex(plaintext_bin)
         return plaintext_hex
 

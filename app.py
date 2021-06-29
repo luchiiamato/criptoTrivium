@@ -1,6 +1,5 @@
 import PySimpleGUI as GUI
 import os.path
-import tempfile
 from PIL import ImageTk, Image
 from TriviumCypher import Trivium, hex_to_rgb, pixels_to_hex
 

@@ -4,6 +4,20 @@ import tempfile
 from PIL import ImageTk, Image
 from TriviumCypher import Trivium, hex_to_rgb, pixels_to_hex
 
+def update_files():
+    folder = values["-FOLDER-"]
+    try:
+        file_list = os.listdir(folder)
+    except:
+        file_list = []
+
+    fnames = [
+        f for f in file_list
+            if os.path.isfile(os.path.join(folder, f))
+            and f.lower().endswith((".png"))
+    ]
+    window["-FILE LIST-"].update(fnames)
+
 cipher = Trivium('', '')
 
 key_hex = ''
@@ -96,6 +110,7 @@ layout = [
 
 window = GUI.Window("Cifrador Trivium", layout)
 
+
 if __name__ == '__main__':
     while True:
         event, values = window.read()
@@ -104,18 +119,7 @@ if __name__ == '__main__':
 
         # Folder name was filled in, make a list of files in the folder
         if event == "-FOLDER-":
-            folder = values["-FOLDER-"]
-            try:
-                file_list = os.listdir(folder)
-            except:
-                file_list = []
-
-            fnames = [
-                f for f in file_list
-                    if os.path.isfile(os.path.join(folder, f))
-                    and f.lower().endswith((".jpg"))
-            ]
-            window["-FILE LIST-"].update(fnames)
+            update_files()
 
         elif event == "-FILE LIST-":  # A file was chosen from the listbox
             try:
@@ -124,6 +128,7 @@ if __name__ == '__main__':
                 img = ImageTk.PhotoImage(Image.open(filename))
                 window["-IMAGE-"].update(data=img)
                 window["-CIFRAR-"].update(disabled=False)
+                window["-DESCIFRAR-"].update(disabled=False)
             except:
                 pass
 
@@ -173,22 +178,24 @@ if __name__ == '__main__':
             try:
                 window["-STATUS-"].update(value='Cifrando...')
                 window.Refresh()
+                
                 filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
                 image = Image.open(filename)
                 data = list(image.getdata())
                 width, height = image.size
-
                 data = pixels_to_hex(data).upper()
+
                 ciphertext = cipher.encrypt(data)
                 data = hex_to_rgb(ciphertext)
 
                 image = Image.new("RGB", (width, height))
                 image.putdata(data)
-                path_cifrada = tempfile.gettempdir() + "/" + values["-FILE LIST-"][0]
-                image.save(path_cifrada)
+                path_cifrada = filename.replace('.png', ' (cifrada).png')
+                image.save(path_cifrada, format='png')
                 image = ImageTk.PhotoImage(Image.open(path_cifrada))
                 window["-IMAGE-"].update(data=image)
                 
+                update_files()
                 window["-DESCIFRAR-"].update(disabled=False)
                 window["-STATUS-"].update(value='')
             except Exception as e:
@@ -198,16 +205,24 @@ if __name__ == '__main__':
             try:
                 window["-STATUS-"].update(value='Descifrando...')
                 window.Refresh()
-                plain = cipher.decrypt(ciphertext)
+
+                filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
+                image = Image.open(filename)
+                data = list(image.getdata())
+                width, height = image.size
+
+                data = pixels_to_hex(data).upper()
+                plain = cipher.decrypt(data)
                 data = hex_to_rgb(plain)
 
                 image = Image.new("RGB", (width, height))
                 image.putdata(data)
-                path_descifrada = tempfile.gettempdir() + "/" + "descifrada.jpg"
-                image.save(path_descifrada)
+                path_descifrada = filename.replace('.png', ' (descifrada).png')
+                image.save(path_descifrada, format='png')
                 image = ImageTk.PhotoImage(Image.open(path_descifrada))
                 window["-IMAGE-"].update(data=image)
                 
+                update_files()
                 window["-DESCIFRAR-"].update(disabled=True)
                 window["-STATUS-"].update(value='')
             except Exception as e:

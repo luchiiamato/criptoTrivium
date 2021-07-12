@@ -180,6 +180,7 @@ if __name__ == '__main__':
                 
                 filename = values["-FOLDER-"] + "/" + values["-FILE LIST-"][0]
                 image = Image.open(filename)
+                image = image.convert("RGB")
                 data = list(image.getdata())
                 width, height = image.size
                 data = pixels_to_hex(data).upper()
